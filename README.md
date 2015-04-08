@@ -1,37 +1,40 @@
--*- restructuredtext -*-
+Important Notes
+===============
+- The project is under MAJOR REFACTORING/UPDATE. IT WILL NOT FUNCTION PROPERLY until first release
+- This project has been moved from [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber)
+- Yes, I'm the same developer who made [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber)
+- Yes, I know  [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber) sucks and does not work properly, but I had no time to fix those
+- Now hereby I say, sorry for all those who were using out-dated, not-properly-functioning old gelbooru-grabber :(
 
 
 What is this?
 =============
-Gelbooru Image Grabber grabs images from the Gelbooru_
+Booru Image Grabber grabs images from the *-booru image sites.
 site and stores the images to the disk. Downloading images one-by-one from the
 website is kinda tedious work. So, why don't we make some kind of program that
 does the downloading automatically?
 
-Just type tags to the Gelbooru Image Grabber and hit the "Download" button.
+Just type tags to the booru Image Grabber and hit the "Download" button.
 The grabber will get all the images searched with given tag and download them
 to the disk.
 
-.. _Gelbooru: http://www.gelbooru.com/
+Currently, booru-grabber supports following *-booru image sites. Note that some of
+these sites are NSFW(Not Safe For Work, if you know what I mean :3), so be warned!
+
+- [Gelbooru](http://www.gelbooru.com/)
 
 What do I need?
 ===============
 Gelbooru Image Grabber is written in Python_. The grabber uses following
 libraries.
 
-- wxPython_ for GUI
-- Twisted_ for Core Download Engine
-- py2exe_ for generating windows binaries.
-- UPX_ for compressing py2exe_ generated binaries.
+- [wxPython](http://www.wxpython.org) for GUI
+- [Twisted](http://www.wxpython.org) for Core Download Engine
+- [py2exe](http://www.py2exe.org) for generating windows binaries.
+- [UPX](http://up.sourceforge.net) for compressing py2exe generated binaries.
 
 You need to place upx.exe downloaded from UPX_ in the same directory with
 setup.py script to generate your own py2exe windows binary.
-
-.. _Python: http://www.python.org/
-.. _wxPython: http://www.wxpython.org/
-.. _Twisted: http://www.twistedmatrix.com/
-.. _py2exe: http://www.py2exe.org/
-.. _UPX: http://upx.sourceforge.net/
 
 
 How do I run?
@@ -73,7 +76,9 @@ After extraction, run the grabber.py script. Have fun!
 
 The grabber does not work! Where can I report the problem?
 ==========================================================
-Gelbooru Grabber is a premature program; which means there can be any kinds of bugs or problems. If you found any bugs or problems while using the grabber, please feel free to file a new issue using the 'Issues' menu above. Or you can send me a message if you are Bitbucket member.
+Booru Grabber is a premature program; which means there can be any kinds of bugs or problems.
+If you found any bugs or problems while using the grabber, please feel free to file a new issue
+using the 'Issues' menu above. Or you can send me a message if you are Github member.
 
 
 
