@@ -24,12 +24,11 @@ import re
 import sys
 import urllib2
 
-from twisted.internet import defer 
-from twisted.internet import reactor
-from twisted.web.client import getPage 
+import gevent
+from gevent.pool import Pool
 
 
-LIST_URL = "http://gelbooru.com/index.php?page=post&s=list&tags=%(tags)s&pid=%(page_index)s"
+LIST_URL = "http://gelbooru.com/index.php?page=dapi&s=post&q=index&tags=%(tags)s&pid=%(page_index)s"
 
 LASTPAGE_PATT = re.compile(r'href=".+pid=(.[0-9]+?)" alt="last page">')
 IMGSTART_PATT = re.compile(r'<span id="s(.[0-9]+?)" class="thumb">')
@@ -41,8 +40,7 @@ class SearchEngine(object):
         self.tags = tags
         self.ui = ui 
         self.codes = set([])
-        self.deferreds = []
-        self.sema = defer.DeferredSemaphore(256)
+        self.pool = Pool(32)
 
     def update_tags(self, tags):
         self.tags = tags
@@ -50,7 +48,6 @@ class SearchEngine(object):
     def fetch_list_page(self, page=0):
         def err_page(reason):
             self.ui.updateError("Error: %s, %s" % (repr(reason), reason.getErrorMessage()))
-
 
         url = LIST_URL % {"page_index": page, "tags": self.tags}
         url = url.encode("cp949")
@@ -65,12 +62,17 @@ class SearchEngine(object):
         req = urllib2.Request(LIST_URL % {"page_index": 0, "tags": self.tags})
         opener = urllib2.build_opener()
         try:
-            result_html = opener.open(req).read()
+            result_xml = opener.open(req).read()
         except urllib2.URLError:
             self.ui.updateError("Cannot get page information. Please check your internet connection.")
             last_page = None
             return last_page
 
+        print result_xml
+
+        return None, None
+
+        """
         if re.findall("Nobody here but us chickens!", result_html):
             self.ui.updateStatus("No result found!")
             last_page = None
@@ -87,18 +89,21 @@ class SearchEngine(object):
                 last_page = 1
             self.ui.updateStatus("Last page is %s" % last_page)
         return last_page, img_per_page
+        """
 
 
-    def do_search(self, deferred):
+    def do_search(self):
         last_page, img_per_page = self.get_last_page_and_img_per_page()
         if not last_page:
             return
 
+        """
         for page in range(0, last_page):
             d = self.sema.run(self.fetch_list_page, page*img_per_page)
             self.deferreds.append(d)
         dl = defer.DeferredList(self.deferreds, consumeErrors=True)
         dl.addCallback(self.got_codes, deferred)
+        """
 
     def get_codes(self, content):
         codes = re.findall(IMGSTART_PATT, content)

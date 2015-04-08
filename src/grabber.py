@@ -23,14 +23,11 @@
 import wx
 import os
 import sys
-import thread
 import urllib
 
-from twisted.internet import wxreactor
-wxreactor.install()
-
-from twisted.internet import defer
-from twisted.internet import reactor
+import gevent
+from gevent import monkey
+monkey.patch_all()
 
 from searchengine import SearchEngine
 from grabdownloader import GrabDownloader
@@ -56,16 +53,42 @@ def module_path():
     return os.path.dirname(unicode(__file__, sys.getfilesystemencoding( )))
 
 
+class GrabberApp(wx.App):
+    def MainLoop(self):
+        evtloop = wx.EventLoop()
+        wx.EventLoop.SetActive(evtloop)
+
+        # This outer loop determines when to exit the application,
+        # for this example we let the main frame reset this flag
+        # when it closes.
+        while self.keepGoing:
+            while evtloop.Pending():
+                evtloop.Dispatch()
+            gevent.sleep(1.0 / 30)
+            self.ProcessIdle()
+
+    def OnInit(self):
+        self.keepGoing = True
+        return True
+
+    def ForceTerminate(self):
+        # XXX: Is this method necessary?
+        self.keepGoing = False
+
+
 WINDOW_TITLE = "Gelbooru Grabber"
 CURRENT_PATH = os.path.abspath(module_path())
 
 
 class GrabberFrame(wx.Frame):
-    def __init__(self):
+    def __init__(self, app):
+        self.app = app
+
         wx.Frame.__init__(self, None, wx.ID_ANY, WINDOW_TITLE, 
                 style=wx.DEFAULT_FRAME_STYLE & ~(wx.MAXIMIZE_BOX),
                 size=(450, -1))
         self.panel = wx.Panel(self, wx.ID_ANY)
+        self.Bind(wx.EVT_CLOSE, self.onTerminate, self)
 
         topLabel = wx.StaticText(self.panel, wx.ID_ANY,
                 "Type tags just like you do in Gelbooru. (e.g. 'elf rating:explicit')")
@@ -197,11 +220,14 @@ class GrabberFrame(wx.Frame):
         self.gd.update_tags(value)
         self.gd.update_dcount(dvalue)
 
-        reactor.callLater(0, self.gd.start_download)
+        gevent.spawn(self.gd.start_download)
 
     def onExit(self, evt):
         self.Close(True)
-        reactor.callLater(0, reactor.stop)
+
+    def onTerminate(self, evt):
+        self.Destroy()
+        self.app.ForceTerminate()
 
     def updateStatus(self, text):
         self.statusText.WriteText(text)
@@ -212,9 +238,10 @@ class GrabberFrame(wx.Frame):
         self.errorText.WriteText("\n")
 
 
+
 if __name__ == "__main__":
-    app = wx.PySimpleApp()
-    frame = GrabberFrame()
+    app = GrabberApp()
+    frame = GrabberFrame(app)
     frame.Show()
-    reactor.registerWxApp(app)
-    reactor.run()
+
+    gevent.joinall([gevent.spawn(app.MainLoop)])

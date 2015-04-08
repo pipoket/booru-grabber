@@ -1,6 +1,6 @@
 # -*- coding: cp949 -*-
 #
-# Copyright (C) 2011 by Woosuk Suh
+# Copyright (C) 2015 by Woosuk Suh
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,9 +23,8 @@
 import re
 import os
 
-from twisted.internet import defer 
-from twisted.internet import reactor
-from twisted.web.client import getPage 
+import gevent
+from gevent.pool import Pool
 
 from searchengine import SearchEngine
 
@@ -43,15 +42,14 @@ class GrabDownloader(object):
         self.fullpath = None
         self.ui = ui
         self.codes = set([])
-        self.deferreds = []
         self.downloaded = 0
-        self.sema = None
+        self.pool = None
 
     def update_tags(self, tags):
         self.tags = tags
 
     def update_dcount(self, dvalue):
-        self.sema = defer.DeferredSemaphore(dvalue)
+        self.pool = Pool(dvalue)
 
     def update_path(self, path):
         self.path = path
@@ -62,9 +60,7 @@ class GrabDownloader(object):
     def start_download(self):
         self.downloaded = 0
         self.se = SearchEngine(self.tags, self.ui)
-        d = defer.Deferred()
-        d.addCallback(self.download)
-        self.se.do_search(d)
+        self.se.do_search()
 
     def download(self, codes):
         if self.ui.createTagFolder.IsChecked():
@@ -78,19 +74,10 @@ class GrabDownloader(object):
         except OSError:
             self.ui.updateStatus("%s directory already exists!" % self.tags)
 
-        for code in self.codes:
-            d = self.sema.run(self._download, code)
-            self.deferreds.append(d)
-        dl = defer.DeferredList(self.deferreds, consumeErrors=True)
-        dl.addCallback(self.download_done)
-
     def _download(self, code):
         url = POST_URL % {"pid": code}
-        d = getPage(url)
-        d.addCallback(self.got_post)
-        d.addErrback(self.error)
-        return d
 
+    """
     def got_post(self, postpage):
         img_url = re.findall(ORIGINALIMG_PATT, postpage)
         if img_url: img_url = img_url[0]
@@ -126,3 +113,4 @@ class GrabDownloader(object):
         self.ui.updateStatus("Download completed")
         self.ui.downloadButton.Enable(True)
         self.ui.searchText.Enable(True)
+    """
