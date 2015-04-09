@@ -62,9 +62,9 @@ class GrabberApp(wx.App):
         # for this example we let the main frame reset this flag
         # when it closes.
         while self.keepGoing:
-            while evtloop.Pending():
+            while self.keepGoing and evtloop.Pending():
                 evtloop.Dispatch()
-            gevent.sleep(1.0 / 30)
+                gevent.sleep(1.0 / 60)
             self.ProcessIdle()
 
     def OnInit(self):
@@ -94,8 +94,6 @@ class GrabberFrame(wx.Frame):
                 "Type tags just like you do in Gelbooru. (e.g. 'elf rating:explicit')")
         self.searchText = wx.TextCtrl(self.panel, wx.ID_ANY, "")
 
-        optionBox = wx.StaticBox(self.panel, wx.ID_ANY, "Options")
-
         downloadCountSizer = wx.BoxSizer(wx.HORIZONTAL)
         downloadCountLabel = wx.StaticText(self.panel, wx.ID_ANY,
                 "Maximum number of active downloads (1-256)")
@@ -116,23 +114,59 @@ class GrabberFrame(wx.Frame):
         downloadPathSizer.Add(downloadPathLabel, 0, wx.BOTTOM, 3)
         downloadPathSizer.Add(downloadPathTextSizer, 1, wx.EXPAND)
 
-        createTagFolderSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.createTagFolder = wx.CheckBox(self.panel, wx.ID_ANY,
-                style=wx.CHK_2STATE)
+                label="Create a new folder with tagname", style=wx.CHK_2STATE)
         self.createTagFolder.SetValue(True)
-        createTagFolderLabel = wx.StaticText(self.panel, wx.ID_ANY,
-                "Create a new folder with tagname")
-        createTagFolderSizer.Add(self.createTagFolder, 0, wx.RIGHT, 5)
-        createTagFolderSizer.Add(createTagFolderLabel, 1)
 
-        overwriteFileSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.overwriteFile = wx.CheckBox(self.panel, wx.ID_ANY,
+                label="Redownload and overwrite image if it exists already",
                 style=wx.CHK_2STATE)
-        overwriteFileLabel = wx.StaticText(self.panel, wx.ID_ANY,
-                "Redownload and overwrite image if it exists already")
-        overwriteFileSizer.Add(self.overwriteFile, 0, wx.RIGHT, 5)
-        overwriteFileSizer.Add(overwriteFileLabel, 1)
 
+        ## Proxy UI
+        optionBox = wx.StaticBox(self.panel, wx.ID_ANY, "Options")
+
+        socksOptionBox = wx.StaticBox(self.panel, wx.ID_ANY, "Proxy")
+        socksOptionSizer = wx.StaticBoxSizer(socksOptionBox, wx.VERTICAL)
+        socksUpperSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.useSocks = wx.CheckBox(self.panel, wx.ID_ANY, label="Use SOCKS proxy", style=wx.CHK_2STATE)
+        socksUpperSizer.Add(self.useSocks, 0, wx.RIGHT, 5)
+        self.Bind(wx.EVT_CHECKBOX, self.onUseSocks, self.useSocks)
+
+        socksDetailSizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.socksRadioBox = wx.StaticBox(self.panel, wx.ID_ANY, label="Type")
+        socksRadioSizer = wx.StaticBoxSizer(self.socksRadioBox, wx.HORIZONTAL)
+        self.optionSocks4 = wx.RadioButton(self.socksRadioBox, wx.ID_ANY, label="SOCKS4")
+        self.optionSocks5 = wx.RadioButton(self.socksRadioBox, wx.ID_ANY, label="SOCKS5")
+        socksRadioSizer.Add(self.optionSocks4, 0, wx.RIGHT)
+        socksRadioSizer.AddSpacer(5)
+        socksRadioSizer.Add(self.optionSocks5, 0, wx.RIGHT, border=10)
+        socksDetailSizer.Add(socksRadioSizer, 0, wx.EXPAND)
+
+        self.socksTextBox = wx.StaticBox(self.panel, wx.ID_ANY, label="Host/Port")
+        socksTextSizer = wx.StaticBoxSizer(self.socksTextBox, wx.HORIZONTAL)
+        socksHostSizer = wx.BoxSizer(wx.HORIZONTAL)
+        socksHostLabel = wx.StaticText(self.socksTextBox, wx.ID_ANY, "Host")
+        self.socksHostText = wx.TextCtrl(self.socksTextBox, wx.ID_ANY)
+        socksHostSizer.Add(socksHostLabel)
+        socksHostSizer.AddSpacer(2)
+        socksHostSizer.Add(self.socksHostText)
+        socksPortSizer = wx.BoxSizer(wx.HORIZONTAL)
+        socksPortLabel = wx.StaticText(self.socksTextBox, wx.ID_ANY, "Port")
+        self.socksPortText = wx.TextCtrl(self.socksTextBox, wx.ID_ANY, size=(50, -1))
+        socksPortSizer.Add(socksPortLabel)
+        socksPortSizer.AddSpacer(2)
+        socksPortSizer.Add(self.socksPortText, 0, wx.RIGHT, 10)
+        socksTextSizer.Add(socksHostSizer)
+        socksTextSizer.AddSpacer(10)
+        socksTextSizer.Add(socksPortSizer)
+        socksDetailSizer.Add(socksTextSizer)
+
+        socksOptionSizer.Add(socksUpperSizer)
+        socksOptionSizer.AddSpacer(5)
+        socksOptionSizer.Add(socksDetailSizer, 0, wx.EXPAND)
+
+        ## Buttons
         self.downloadButton = wx.Button(self.panel, wx.ID_ANY, "Download")
         self.exitButton = wx.Button(self.panel, wx.ID_ANY, "Exit")
         self.Bind(wx.EVT_BUTTON, self.onDownload, self.downloadButton)
@@ -152,7 +186,7 @@ class GrabberFrame(wx.Frame):
         optionBoxSizer = wx.StaticBoxSizer(optionBox, wx.VERTICAL)
         buttonSizer = wx.BoxSizer(wx.HORIZONTAL)
         statusSizer = wx.BoxSizer(wx.VERTICAL)
-       
+
         searchSizer.Add(self.searchText, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
 
         optionBoxSizer.AddSpacer(5)
@@ -160,12 +194,15 @@ class GrabberFrame(wx.Frame):
         optionBoxSizer.AddSpacer(5)
         optionBoxSizer.Add(downloadPathSizer, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         optionBoxSizer.AddSpacer(10)
-        optionBoxSizer.Add(createTagFolderSizer, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        optionBoxSizer.Add(self.createTagFolder, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         optionBoxSizer.AddSpacer(10)
-        optionBoxSizer.Add(overwriteFileSizer, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        optionBoxSizer.Add(self.overwriteFile, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        optionBoxSizer.AddSpacer(10)
+        optionBoxSizer.Add(socksOptionSizer, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         optionBoxSizer.AddSpacer(10)
 
         buttonSizer.Add(self.downloadButton, 0, wx.ALL, 0)
+        buttonSizer.AddSpacer(10)
         buttonSizer.Add(self.exitButton, 0, wx.ALL, 0)
 
         statusSizer.Add(statusLabel, 0, wx.LEFT)
@@ -185,7 +222,12 @@ class GrabberFrame(wx.Frame):
         self.downloadCount.SetValue(8)
         self.downloadCount.SetRange(1, 256)
 
+        self.prepareUI()
         self.prepareCores()
+
+    def prepareUI(self):
+        self.socksRadioBox.Enable(False)
+        self.socksTextBox.Enable(False)
 
     def prepareCores(self):
         self.path = CURRENT_PATH
@@ -199,6 +241,10 @@ class GrabberFrame(wx.Frame):
             self.downloadPathText.SetValue(self.path)
             self.gd.update_path(self.path)
         dlg.Destroy()
+
+    def onUseSocks(self, evt):
+        self.socksRadioBox.Enable(self.useSocks.IsChecked())
+        self.socksTextBox.Enable(self.useSocks.IsChecked())
 
     def onDownload(self, evt):
         value = self.searchText.GetValue().strip()
@@ -243,5 +289,4 @@ if __name__ == "__main__":
     app = GrabberApp()
     frame = GrabberFrame(app)
     frame.Show()
-
     gevent.joinall([gevent.spawn(app.MainLoop)])
