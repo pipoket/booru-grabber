@@ -128,6 +128,7 @@ class GrabberFrame(wx.Frame):
 
         ## Proxy UI
         optionBox = wx.StaticBox(self.panel, wx.ID_ANY, "Options")
+        self.optionBox = optionBox
 
         socksOptionBox = wx.StaticBox(self.panel, wx.ID_ANY, "Proxy")
         socksOptionSizer = wx.StaticBoxSizer(socksOptionBox, wx.VERTICAL)
@@ -175,8 +176,10 @@ class GrabberFrame(wx.Frame):
 
         ## Buttons
         self.downloadButton = wx.Button(self.panel, wx.ID_ANY, "Download")
+        self.stopButton = wx.Button(self.panel, wx.ID_ANY, "Stop")
         self.exitButton = wx.Button(self.panel, wx.ID_ANY, "Exit")
         self.Bind(wx.EVT_BUTTON, self.onDownload, self.downloadButton)
+        self.Bind(wx.EVT_BUTTON, self.onStop, self.stopButton)
         self.Bind(wx.EVT_BUTTON, self.onExit, self.exitButton)
 
         statusLabel = wx.StaticText(self.panel, wx.ID_ANY, "Status displayed below:")
@@ -184,6 +187,7 @@ class GrabberFrame(wx.Frame):
         self.statusText = wx.TextCtrl(self.panel, wx.ID_ANY,
                 size=(-1, 100),
                 style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.statusLabel = wx.StaticText(self.panel, wx.ID_ANY, "Speed: Not Downloading")
         self.errorText = wx.TextCtrl(self.panel, wx.ID_ANY,
                 size=(-1, 100),
                 style=wx.TE_MULTILINE|wx.TE_READONLY)
@@ -210,10 +214,14 @@ class GrabberFrame(wx.Frame):
 
         buttonSizer.Add(self.downloadButton, 0, wx.ALL, 0)
         buttonSizer.AddSpacer(10)
+        buttonSizer.Add(self.stopButton, 0, wx.ALL, 0)
+        buttonSizer.AddSpacer(10)
         buttonSizer.Add(self.exitButton, 0, wx.ALL, 0)
 
         statusSizer.Add(statusLabel, 0, wx.LEFT)
         statusSizer.Add(self.statusText, 0, wx.CENTER|wx.EXPAND)
+        statusSizer.Add(self.statusLabel, 0)
+        statusSizer.AddSpacer(10)
         statusSizer.Add(errorLabel, 0, wx.LEFT)
         statusSizer.Add(self.errorText, 0, wx.CENTER|wx.EXPAND)
 
@@ -235,6 +243,7 @@ class GrabberFrame(wx.Frame):
     def prepareUI(self):
         self.socksRadioBox.Enable(False)
         self.socksTextBox.Enable(False)
+        self.stopButton.Enable(False)
 
     def prepareCores(self):
         self.path = CURRENT_PATH
@@ -299,8 +308,10 @@ class GrabberFrame(wx.Frame):
             if not (socksHost and socksPort):
                 self.updateError("Please input host/port of SOCKS proxy to use!")
 
-            self.updateStatus("Using SOCKS proxy at %s:%s..." % (socksHost, socksPort))
+            self.updateStatus("Using %s proxy at %s:%s..." % (socksType, socksHost, socksPort))
 
+        self.stopButton.Enable(True)
+        self.optionBox.Enable(False)
         self.downloadButton.Enable(False)
         self.searchText.Enable(False)
         self.updateStatus("Begin searching %s... This may take up some time." % value)
@@ -308,6 +319,10 @@ class GrabberFrame(wx.Frame):
         self.gd.update_dcount(dvalue)
 
         gevent.spawn(self.gd.start_download)
+
+    def onStop(self, evt):
+        self.gd.stop_download()
+        self.stopButton.Enable(False)
 
     def onExit(self, evt):
         self.Close(True)

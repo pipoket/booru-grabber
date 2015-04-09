@@ -27,6 +27,8 @@ import urllib2
 import socks
 import socket
 
+import xml.etree.ElementTree as et
+
 import gevent
 from gevent.pool import Pool
 
@@ -44,24 +46,30 @@ class SearchEngine(object):
     def __init__(self, tags="", ui=None):
         self.tags = tags
         self.ui = ui 
-        self.codes = set([])
-        self.pool = Pool(32)
+        self.file_url_list = set([])
+        self.pool = Pool(16)
         self.original_socket = socket.socket
 
     def update_tags(self, tags):
         self.tags = tags
 
     def fetch_list_page(self, page=0):
-        def err_page(reason):
-            self.ui.updateError("Error: %s, %s" % (repr(reason), reason.getErrorMessage()))
+        try:
+            req = urllib2.Request(LIST_URL % {"page_index": page, "tags": self.tags})
+            proxy_info = self.ui.get_proxy_addr()
+            if proxy_info:
+                opener = urllib2.build_opener(SocksProxyHandler(proxy_info["type"], proxy_info["host"], proxy_info["port"]) )
+            else:
+                opener = urllib2.build_opener()
 
-        url = LIST_URL % {"page_index": page, "tags": self.tags}
-        url = url.encode("cp949")
+            result_xml = opener.open(req).read()
 
-        d = getPage(url, agent="Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/534.20 (KHTML, like Gecko) Chrome/11.0.672.2 Safari/534.20")
-        d.addCallback(self.get_codes)
-        d.addErrback(err_page)
-        self.deferreds.append(d)
+            root = et.fromstring(result_xml)
+            for post in root.iter("post"):
+                self.file_url_list.add(post.attrib["file_url"])
+            self.ui.updateStatus("%s items found until now." % len(self.file_url_list))
+        except Exception, e:
+            self.ui.updateError("Error: %s" % e)
 
     def get_last_page_and_img_per_page(self):
         self.ui.updateStatus("Getting last page...")
@@ -75,53 +83,26 @@ class SearchEngine(object):
 
         try:
             result_xml = opener.open(req).read()
+
+            root = et.fromstring(result_xml)
+            total_count = int(root.attrib["count"])
+            img_per_page = len(root.findall("post"))
+            last_page = total_count / img_per_page
+            self.ui.updateStatus("Found %d images on each page" % img_per_page)
+            self.ui.updateStatus("Last page is %s" % last_page)
+            return last_page, img_per_page
         except urllib2.URLError:
             self.ui.updateError("Cannot get page information. Please check your internet connection.")
             last_page = None
             return last_page
-
-        print result_xml
-
-        return None, None
-
-        """
-        if re.findall("Nobody here but us chickens!", result_html):
-            self.ui.updateStatus("No result found!")
-            last_page = None
-        else:
-            # First get the count of image per page
-            img_per_page = len(re.findall(IMGSTART_PATT, result_html))
-            self.ui.updateStatus("Found %d images on each page" % img_per_page)
-
-            try:
-                last_pid = re.findall(LASTPAGE_PATT, result_html)[0]
-                last_page = int(last_pid)/img_per_page + 1
-            except IndexError:
-                # There exists only one page.
-                last_page = 1
-            self.ui.updateStatus("Last page is %s" % last_page)
-        return last_page, img_per_page
-        """
-
 
     def do_search(self):
         last_page, img_per_page = self.get_last_page_and_img_per_page()
         if not last_page:
             return
 
-        """
         for page in range(0, last_page):
-            d = self.sema.run(self.fetch_list_page, page*img_per_page)
-            self.deferreds.append(d)
-        dl = defer.DeferredList(self.deferreds, consumeErrors=True)
-        dl.addCallback(self.got_codes, deferred)
-        """
-
-    def get_codes(self, content):
-        codes = re.findall(IMGSTART_PATT, content)
-        self.codes.update(codes)
-        self.ui.updateStatus("%s items found until now." % len(self.codes))
-
-    def got_codes(self, result, d):
-        self.ui.updateStatus("Total %s items found" % len(self.codes))
-        d.callback(self.codes)
+            self.pool.spawn(self.fetch_list_page, page)
+        self.pool.join()
+        self.ui.updateStatus("Total %s items found" % len(self.file_url_list))
+        return self.file_url_list
