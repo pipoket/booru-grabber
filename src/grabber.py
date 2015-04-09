@@ -20,14 +20,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import gevent
+from gevent import monkey
+monkey.patch_all()
+
 import wx
 import os
 import sys
 import urllib
 
-import gevent
-from gevent import monkey
-monkey.patch_all()
+import socks
+import socket
 
 from searchengine import SearchEngine
 from grabdownloader import GrabDownloader
@@ -83,6 +86,7 @@ CURRENT_PATH = os.path.abspath(module_path())
 class GrabberFrame(wx.Frame):
     def __init__(self, app):
         self.app = app
+        self.original_socket = socket.socket
 
         wx.Frame.__init__(self, None, wx.ID_ANY, WINDOW_TITLE, 
                 style=wx.DEFAULT_FRAME_STYLE & ~(wx.MAXIMIZE_BOX),
@@ -128,20 +132,23 @@ class GrabberFrame(wx.Frame):
         socksOptionBox = wx.StaticBox(self.panel, wx.ID_ANY, "Proxy")
         socksOptionSizer = wx.StaticBoxSizer(socksOptionBox, wx.VERTICAL)
         socksUpperSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.useSocks = wx.CheckBox(self.panel, wx.ID_ANY, label="Use SOCKS proxy", style=wx.CHK_2STATE)
+        self.useSocks = wx.CheckBox(self.panel, wx.ID_ANY, label="Use Proxy", style=wx.CHK_2STATE)
         socksUpperSizer.Add(self.useSocks, 0, wx.RIGHT, 5)
         self.Bind(wx.EVT_CHECKBOX, self.onUseSocks, self.useSocks)
 
-        socksDetailSizer = wx.BoxSizer(wx.HORIZONTAL)
+        socksDetailSizer = wx.BoxSizer(wx.VERTICAL)
 
         self.socksRadioBox = wx.StaticBox(self.panel, wx.ID_ANY, label="Type")
         socksRadioSizer = wx.StaticBoxSizer(self.socksRadioBox, wx.HORIZONTAL)
+        self.optionHttp = wx.RadioButton(self.socksRadioBox, wx.ID_ANY, label="HTTP")
         self.optionSocks4 = wx.RadioButton(self.socksRadioBox, wx.ID_ANY, label="SOCKS4")
         self.optionSocks5 = wx.RadioButton(self.socksRadioBox, wx.ID_ANY, label="SOCKS5")
-        socksRadioSizer.Add(self.optionSocks4, 0, wx.RIGHT)
+        socksRadioSizer.Add(self.optionHttp, 0, wx.BOTTOM, 10)
         socksRadioSizer.AddSpacer(5)
-        socksRadioSizer.Add(self.optionSocks5, 0, wx.RIGHT, border=10)
-        socksDetailSizer.Add(socksRadioSizer, 0, wx.EXPAND)
+        socksRadioSizer.Add(self.optionSocks4, 0, wx.BOTTOM, 10)
+        socksRadioSizer.AddSpacer(5)
+        socksRadioSizer.Add(self.optionSocks5, 0, wx.BOTTOM, 10)
+        socksDetailSizer.Add(socksRadioSizer, 0, wx.EXPAND | wx.ALIGN_CENTER)
 
         self.socksTextBox = wx.StaticBox(self.panel, wx.ID_ANY, label="Host/Port")
         socksTextSizer = wx.StaticBoxSizer(self.socksTextBox, wx.HORIZONTAL)
@@ -150,17 +157,17 @@ class GrabberFrame(wx.Frame):
         self.socksHostText = wx.TextCtrl(self.socksTextBox, wx.ID_ANY)
         socksHostSizer.Add(socksHostLabel)
         socksHostSizer.AddSpacer(2)
-        socksHostSizer.Add(self.socksHostText)
+        socksHostSizer.Add(self.socksHostText, 0, wx.BOTTOM | wx.EXPAND, 10)
         socksPortSizer = wx.BoxSizer(wx.HORIZONTAL)
         socksPortLabel = wx.StaticText(self.socksTextBox, wx.ID_ANY, "Port")
-        self.socksPortText = wx.TextCtrl(self.socksTextBox, wx.ID_ANY, size=(50, -1))
+        self.socksPortText = wx.TextCtrl(self.socksTextBox, wx.ID_ANY)
         socksPortSizer.Add(socksPortLabel)
         socksPortSizer.AddSpacer(2)
-        socksPortSizer.Add(self.socksPortText, 0, wx.RIGHT, 10)
+        socksPortSizer.Add(self.socksPortText, 0, wx.BOTTOM | wx.EXPAND, 10)
         socksTextSizer.Add(socksHostSizer)
         socksTextSizer.AddSpacer(10)
         socksTextSizer.Add(socksPortSizer)
-        socksDetailSizer.Add(socksTextSizer)
+        socksDetailSizer.Add(socksTextSizer, 0, wx.EXPAND)
 
         socksOptionSizer.Add(socksUpperSizer)
         socksOptionSizer.AddSpacer(5)
@@ -233,6 +240,22 @@ class GrabberFrame(wx.Frame):
         self.path = CURRENT_PATH
         self.gd = GrabDownloader(ui=self, path=self.path)
 
+    def get_proxy_addr(self):
+        if self.useSocks.IsChecked():
+            if self.optionHttp.GetValue():
+                socksType = socks.HTTP
+            elif self.optionSocks4.GetValue():
+                socksType = socks.SOCKS4
+            elif self.optionSocks5.GetValue():
+                socksType = socks.SOCKS5
+
+            socksHost = self.socksHostText.GetValue()
+            socksPort = int(self.socksPortText.GetValue())
+
+            return {"type": socksType, "host": socksHost, "port": socksPort}
+        else:
+            return None
+
     def onDownloadPath(self, evt):
         dlg = wx.DirDialog(self, "Select path to save images",
                 style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
@@ -259,6 +282,24 @@ class GrabberFrame(wx.Frame):
             self.updateError("Please input correct # of files to download simultaneously!")
             return
 
+        if self.useSocks.IsChecked():
+            socksType = None
+            if self.optionHttp.GetValue():
+                socksType = "HTTP"
+            elif self.optionSocks4.GetValue():
+                socksType = "SOCKS4"
+            elif self.optionSocks5.GetValue():
+                socksType = "SOCKS5"
+            else:
+                self.updateError("Please select type of SOCKS proxy to use!")
+                return
+
+            socksHost = self.socksHostText.GetValue()
+            socksPort = self.socksPortText.GetValue()
+            if not (socksHost and socksPort):
+                self.updateError("Please input host/port of SOCKS proxy to use!")
+
+            self.updateStatus("Using SOCKS proxy at %s:%s..." % (socksHost, socksPort))
 
         self.downloadButton.Enable(False)
         self.searchText.Enable(False)

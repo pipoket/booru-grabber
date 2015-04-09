@@ -24,8 +24,13 @@ import re
 import sys
 import urllib2
 
+import socks
+import socket
+
 import gevent
 from gevent.pool import Pool
+
+from grabconnection import SocksProxyHandler
 
 
 LIST_URL = "http://gelbooru.com/index.php?page=dapi&s=post&q=index&tags=%(tags)s&pid=%(page_index)s"
@@ -41,6 +46,7 @@ class SearchEngine(object):
         self.ui = ui 
         self.codes = set([])
         self.pool = Pool(32)
+        self.original_socket = socket.socket
 
     def update_tags(self, tags):
         self.tags = tags
@@ -59,8 +65,14 @@ class SearchEngine(object):
 
     def get_last_page_and_img_per_page(self):
         self.ui.updateStatus("Getting last page...")
+
         req = urllib2.Request(LIST_URL % {"page_index": 0, "tags": self.tags})
-        opener = urllib2.build_opener()
+        proxy_info = self.ui.get_proxy_addr()
+        if proxy_info:
+            opener = urllib2.build_opener(SocksProxyHandler(proxy_info["type"], proxy_info["host"], proxy_info["port"]) )
+        else:
+            opener = urllib2.build_opener()
+
         try:
             result_xml = opener.open(req).read()
         except urllib2.URLError:
