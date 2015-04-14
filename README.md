@@ -34,9 +34,11 @@ How do I run?
 
 On Windows
 ----------
-Download the executable files from the Downloads section. Extract the files in
-the archive you downloaded to the location wherever you want.
-After extraction, run grabber.exe. Have fun!
+
+1. Download Grabber as a ZIP archive from [Release page](https://github.com/pipoket/booru-grabber/releases)
+2. Extract the files in the archive to the location wherever you want.
+3. Run grabber.exe. Have fun!
+4. If you want to delete Grabber later, simply delete the files and you're done.
 
 
 On Linux like environment
@@ -53,13 +55,13 @@ should be executed with superuser privileges.
     # easy_install pip
 
     (Now, here we install required libraries for gelbooru-grabber)
+    # pip install wxPython
     # pip install gevent
     # pip install PySocks
 
-
-Download the tar gzipped files from the Downloads section. Extract the files in
-the archive you downloaded to the location wherever you want. You should
-extract the scripts to the location where you have permission to write.
+Download Grabber as a ZIP archive from [Release page](https://github.com/pipoket/booru-grabber/releases).
+Extract the files in the archive you downloaded to the location wherever you want.
+You should extract the scripts to the location where you have permission to write.
 After extraction, run the grabber.py script. Have fun!
 
 
