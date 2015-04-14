@@ -187,10 +187,11 @@ class GrabDownloader(object):
             self.downloaded += 1
             self.ui.updateStatus("Progress: %s/%s (%.2f %%)" % (self.downloaded, len(self.file_urls),
                     self.downloaded * 100.0 / len(self.file_urls)))
-        except urllib2.URLError, ue:
+        except urllib2.HTTPError, ue:
             if ue.code == 503:
                 # Temporarily Unavailable Error: Retry!
                 self.pool.spawn(self.get_image, file_url)
-            self.ui.updateError("Error: %s" % ue)
+            else:
+                self.ui.updateError("Error: %s" % ue)
         except Exception, e:
             self.ui.updateError("Error: %s" % e)
