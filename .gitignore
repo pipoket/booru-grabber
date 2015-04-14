@@ -104,3 +104,7 @@ $RECYCLE.BIN/
 # =========================
 *.swo
 *.swp
+
+# cx_Freeze output
+# =========================
+src/build
