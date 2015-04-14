@@ -64,11 +64,18 @@ class GrabberApp(wx.App):
         # This outer loop determines when to exit the application,
         # for this example we let the main frame reset this flag
         # when it closes.
-        while self.keepGoing:
-            while self.keepGoing and evtloop.Pending():
-                evtloop.Dispatch()
-                gevent.sleep(1.0 / 60)
-            self.ProcessIdle()
+        if sys.platform == "darwin":
+            while self.keepGoing:
+                while self.keepGoing and evtloop.Pending():
+                    evtloop.Dispatch()
+                    gevent.sleep(1.0 / 60)
+                self.ProcessIdle()
+        else:
+            while self.keepGoing:
+                while evtloop.Pending():
+                    evtloop.Dispatch()
+                gevent.sleep(1.0 / 30)
+                self.ProcessIdle()
 
     def OnInit(self):
         self.keepGoing = True
