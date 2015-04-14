@@ -1,12 +1,3 @@
-Important Notes
-===============
-- The project is under MAJOR REFACTORING/UPDATE. IT WILL NOT FUNCTION PROPERLY until first release
-- This project has been moved from [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber)
-- Yes, I'm the same developer who made [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber)
-- Yes, I know  [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber) sucks and does not work properly, but I had no time to fix those
-- Now hereby I say, sorry for all those who were using out-dated, not-properly-functioning old gelbooru-grabber :(
-
-
 What is this?
 =============
 Booru Image Grabber grabs images from the *-booru image sites.
@@ -29,12 +20,13 @@ Gelbooru Image Grabber is written in Python_. The grabber uses following
 libraries.
 
 - [wxPython](http://www.wxpython.org) for GUI
-- [Twisted](http://www.wxpython.org) for Core Download Engine
-- [py2exe](http://www.py2exe.org) for generating windows binaries.
-- [UPX](http://up.sourceforge.net) for compressing py2exe generated binaries.
+- [gevent](http://www.gevent.org) for Core Download Engine
+- [PySocks](https://github.com/Anorov/PySocks) for HTTP/SOCKS proxy support.
+- [cx_Freeze](http://cx-freeze.sourceforge.net) for generating windows binaries.
+- [UPX](http://upx.sourceforge.net) for compressing py2exe generated binaries.
 
-You need to place upx.exe downloaded from UPX_ in the same directory with
-setup.py script to generate your own py2exe windows binary.
+You need to place upx.exe downloaded from UPX in the same directory with
+setup.py script to generate your own cx_Freeze windows binary.
 
 
 How do I run?
@@ -53,18 +45,16 @@ You should probably run the grabber using raw Python script,
 you would have to install all the libraries. Library installation differs from
 environment to environment.
 
-Here is an example for installing required libraries under Ubuntu 11.04. Every command
-should be executed with superuser privileges. (Hey, you are installing libraries and
-superuser privileges do count) ::
+Here is an example for installing required libraries under Ubuntu 11.04.
+should be executed with superuser privileges.
 
     (If you don't have pip installed within your environment)
     # apt-get install python-setuptools
     # easy_install pip
 
     (Now, here we install required libraries for gelbooru-grabber)
-    # pip install wxPython
-    # pip install twisted
-
+    # pip install gevent
+    # pip install PySocks
 
 
 Download the tar gzipped files from the Downloads section. Extract the files in
@@ -84,6 +74,23 @@ using the 'Issues' menu above. Or you can send me a message if you are Github me
 
 Release Notes
 =============
+
+0.2.0 (2015-04-14)
+------------------
+
+MAJOR REFACTORING AND UPDATES! (4 years D:)
+
+**Bug fixes**
+- Grabber does not work properly (it was severely outdated)
+
+**Updates**
+- Gelbooru provides API for programs like us and Grabber takes advantage of it
+
+**Features**
+- Updated UI
+ - Added download speed label which shows whether Grabber is working or not
+- Added support for proxy(HTTP/SOCKS4/SOCKS5)
+- Added 'Stop' button which stops download in progress
 
 0.1.8 (2011-12-04)
 ------------------
@@ -138,12 +145,9 @@ Release Notes
 
 
 
-Release Plan
-============
-
-0.2.0
------
-
-- Support all the booru-like image boards. (danbooru, oreno.imouto and you name it!)
-
-
+Side Notes
+===============
+- This project has been moved from [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber)
+- Yes, I'm the same developer who made [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber)
+- Yes, I know  [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber) sucks and does not work properly, but I had no time to fix those
+- Now hereby I say, sorry for all those who were using out-dated, not-properly-functioning old gelbooru-grabber :(
