@@ -118,6 +118,7 @@ class GrabDownloader(object):
         if self.is_downloading:
             self.is_downloading = False
             self.pool.kill()
+            self.pool.join()
             self.se.stop()
             self.se = None
             self.ui.updateStatus("Cancelling Download...")
@@ -125,8 +126,9 @@ class GrabDownloader(object):
             self.se = None
             self.ui.updateStatus("Download Done")
             self.ui.downloadButton.Enable(True)
+            self.ui.stopButton.Enable(False)
             self.ui.searchText.Enable(True)
-            self.ui.optionBox.Enable(True)
+            self.ui.enableOptionsUI(True)
             if self.ui_updater:
                 self.ui_updater.kill()
                 self.ui_updater = None

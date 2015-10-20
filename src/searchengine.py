@@ -39,9 +39,11 @@ class SearchEngine(object):
         self.tags = tags
         self.ui = ui 
         self.target_list = list()
-        self.pool = Pool(16)
+        self.pool_id = Pool(1)
+        self.pool_image = Pool(16)
         self.original_socket = socket.socket
         self.is_downloading = False
+        self.stop_downloading = False
 
     def update_tags(self, tags):
         self.tags = tags
@@ -54,11 +56,13 @@ class SearchEngine(object):
         self.run_engine()
         self.ui.updateStatus("Total %s items found" % len(self.target_list))
         self.is_downloading = False
+        self.stop_downloading = False
         return self.target_list
 
     def stop(self):
-        if self.is_downloading:
-            self.is_downloading = False
+        while self.is_downloading:
+            self.stop_downloading = True
+            gevent.sleep(0.1)
 
 
 class GelbooruEngine(SearchEngine):
@@ -74,9 +78,9 @@ class GelbooruEngine(SearchEngine):
     def run_engine(self):
         self.ui.updateStatus("Getting image list...")
 
-        page = 0
         image_set = set(list())
-        while self.is_downloading:
+        page = 0
+        while (not self.stop_downloading):
             partial_list = self.get_list_with_page(page)
             [image_set.add(x) for x in partial_list]
             if len(partial_list) < self.IMAGE_PER_PAGE:
@@ -84,8 +88,10 @@ class GelbooruEngine(SearchEngine):
             page += 1
 
         for image in image_set:
-            self.pool.spawn(self.get_original_url, image)
-        self.pool.join()
+            if self.stop_downloading:
+                break
+            self.pool_image.spawn(self.get_original_url, image)
+        self.pool_image.join()
 
     def get_list_with_page(self, page=0):
         url = self.LIST_URL % {"page_index": page * self.IMAGE_PER_PAGE, "tags": self.tags}

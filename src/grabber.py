@@ -28,6 +28,7 @@ import wx
 import os
 import sys
 import urllib
+import ConfigParser
 
 import socks
 import socket
@@ -134,7 +135,7 @@ class GrabberFrame(wx.Frame):
 
         userAgentSizer = wx.BoxSizer(wx.VERTICAL)
         userAgentLabel = wx.StaticText(self.panel, wx.ID_ANY,
-                "User Agent (It's ok to use default value if you don't know about this)")
+                "User Agent (Leave blank to use default one)")
         self.userAgentText = wx.TextCtrl(self.panel, wx.ID_ANY, DEFAULT_USER_AGENT)
         userAgentSizer.Add(userAgentLabel, 0, wx.BOTTOM, 3)
         userAgentSizer.Add(self.userAgentText, 1, wx.EXPAND)
@@ -213,6 +214,7 @@ class GrabberFrame(wx.Frame):
 
         searchSizer.Add(self.searchText, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
 
+        self.optionBoxSizer = optionBoxSizer
         optionBoxSizer.AddSpacer(5)
         optionBoxSizer.Add(downloadCountSizer, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         optionBoxSizer.AddSpacer(5)
@@ -226,6 +228,8 @@ class GrabberFrame(wx.Frame):
         optionBoxSizer.AddSpacer(10)
         optionBoxSizer.Add(socksOptionSizer, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         optionBoxSizer.AddSpacer(10)
+
+        self.downloadCountSizer = downloadCountSizer
 
         buttonSizer.Add(self.downloadButton, 0, wx.ALL, 0)
         buttonSizer.AddSpacer(10)
@@ -254,6 +258,7 @@ class GrabberFrame(wx.Frame):
 
         self.prepareUI()
         self.prepareCores()
+        self.prepareOptions()
 
     def prepareUI(self):
         self.socksRadioBox.Enable(False)
@@ -263,6 +268,63 @@ class GrabberFrame(wx.Frame):
     def prepareCores(self):
         self.path = CURRENT_PATH
         self.gd = GrabDownloader(ui=self, path=self.path)
+
+    def prepareOptions(self):
+        try:
+            config = ConfigParser.SafeConfigParser()
+            config.read("config.ini")
+            self.downloadCount.SetValue(config.getint("Options", "downloadCount"))
+            self.downloadPathText.SetValue(config.get("Options", "downloadPath"))
+            self.gd.update_path(self.downloadPathText.GetValue())
+            self.createTagFolder.SetValue(config.getboolean("Options", "createTagFolder"))
+            self.overwriteFile.SetValue(config.getboolean("Options", "overwriteFile"))
+            self.userAgentText.SetValue(config.get("Options", "userAgentText"))
+            self.useSocks.SetValue(config.getboolean("Options", "useProxy"))
+            if self.useSocks.IsChecked():
+                proxyType = config.getint("Options", "proxyType")
+                self.socksRadioBox.Enable(True)
+                self.socksTextBox.Enable(True)
+                if proxyType == socks.HTTP:
+                    self.optionHttp.SetValue(True)
+                    self.optionSocks4.SetValue(False)
+                    self.optionSocks5.SetValue(False)
+                elif proxyType == socks.SOCKS4:
+                    self.optionHttp.SetValue(False)
+                    self.optionSocks4.SetValue(True)
+                    self.optionSocks5.SetValue(False)
+                elif proxyType == socks.SOCKS5:
+                    self.optionHttp.SetValue(False)
+                    self.optionSocks4.SetValue(False)
+                    self.optionSocks5.SetValue(True)
+                self.socksHostText.SetValue(config.get("Options", "proxyHost"))
+                self.socksPortText.SetValue(config.get("Options", "proxyPort"))
+        except Exception, e:
+            self.saveOptions()
+            self.updateStatus("Config file not found or parse error. Created new one.")
+
+    def saveOptions(self):
+        config = ConfigParser.SafeConfigParser()
+        config.add_section("Options")
+        config.set("Options", "downloadCount", str(self.downloadCount.GetValue()))
+        config.set("Options", "downloadPath", self.downloadPathText.GetValue())
+        config.set("Options", "createTagFolder", 'true' if self.createTagFolder.IsChecked() else 'false')
+        config.set("Options", "overwriteFile", 'true' if self.overwriteFile.IsChecked() else 'false')
+        config.set("Options", "userAgentText", self.userAgentText.GetValue() or DEFAULT_USER_AGENT)
+        config.set("Options", "useProxy", 'true' if self.useSocks.IsChecked() else 'false')
+        if self.useSocks.IsChecked():
+            if self.optionHttp.GetValue():
+                proxyType = socks.HTTP
+            elif self.optionSocks4.GetValue():
+                proxyType = socks.SOCKS4
+            elif self.optionSocks5.GetValue():
+                proxyType = socks.SOCKS5
+            else:
+                proxyType = socks.HTTP
+            config.set("Options", "proxyType", str(proxyType))
+        config.set("Options", "proxyHost", self.socksHostText.GetValue())
+        config.set("Options", "proxyPort", str(self.socksPortText.GetValue()))
+        with open("config.ini", "w") as config_file:
+            config.write(config_file)
 
     def get_proxy_info(self):
         if self.useSocks.IsChecked():
@@ -284,6 +346,7 @@ class GrabberFrame(wx.Frame):
         ua = self.userAgentText.GetValue().strip()
         if not ua:
             ua = DEFAULT_USER_AGENT
+            self.userAgentText.SetValue(DEFAULT_USER_AGENT)
         return ua
 
     def onDownloadPath(self, evt):
@@ -332,7 +395,7 @@ class GrabberFrame(wx.Frame):
             self.updateStatus("Using %s proxy at %s:%s..." % (socksType, socksHost, socksPort))
 
         self.stopButton.Enable(True)
-        self.optionBox.Enable(False)
+        self.enableOptionsUI(False)
         self.downloadButton.Enable(False)
         self.searchText.Enable(False)
         self.updateStatus("Begin searching %s... This may take up some time." % value)
@@ -340,6 +403,18 @@ class GrabberFrame(wx.Frame):
         self.gd.update_dcount(dvalue)
 
         gevent.spawn(self.gd.start_download)
+
+    def enableOptionsUI(self, enable=True):
+        self.downloadCount.Enable(enable)
+        self.downloadPathButton.Enable(enable)
+        self.createTagFolder.Enable(enable)
+        self.overwriteFile.Enable(enable)
+        self.userAgentText.Enable(enable)
+        self.useSocks.Enable(enable)
+        self.optionHttp.Enable(enable)
+        self.optionSocks4.Enable(enable)
+        self.optionSocks5.Enable(enable)
+        self.socksTextBox.Enable(enable)
 
     def onStop(self, evt):
         self.gd.stop_download()
@@ -349,6 +424,7 @@ class GrabberFrame(wx.Frame):
         self.Close(True)
 
     def onTerminate(self, evt):
+        self.saveOptions()
         self.Destroy()
         self.app.ForceTerminate()
 
