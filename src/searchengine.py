@@ -24,7 +24,6 @@ import re
 import sys
 import urllib2
 
-import socks
 import socket
 
 import xml.etree.ElementTree as et
@@ -32,77 +31,96 @@ import xml.etree.ElementTree as et
 import gevent
 from gevent.pool import Pool
 
-from grabconnection import SocksProxyHandler
-
-
-LIST_URL = "http://gelbooru.com/index.php?page=dapi&s=post&q=index&tags=%(tags)s&pid=%(page_index)s"
-
-LASTPAGE_PATT = re.compile(r'href=".+pid=(.[0-9]+?)" alt="last page">')
-IMGSTART_PATT = re.compile(r'<span id="s(.[0-9]+?)" class="thumb">')
-
+from grabconnection import get_url_opener
 
 
 class SearchEngine(object):
     def __init__(self, tags="", ui=None):
         self.tags = tags
         self.ui = ui 
-        self.file_url_list = set([])
+        self.target_list = list()
         self.pool = Pool(16)
         self.original_socket = socket.socket
+        self.is_downloading = False
 
     def update_tags(self, tags):
         self.tags = tags
 
-    def fetch_list_page(self, page=0):
-        try:
-            req = urllib2.Request(LIST_URL % {"page_index": page, "tags": self.tags})
-            proxy_info = self.ui.get_proxy_addr()
-            if proxy_info:
-                opener = urllib2.build_opener(SocksProxyHandler(proxy_info["type"], proxy_info["host"], proxy_info["port"]) )
-            else:
-                opener = urllib2.build_opener()
-
-            result_xml = opener.open(req).read()
-
-            root = et.fromstring(result_xml)
-            for post in root.iter("post"):
-                self.file_url_list.add(post.attrib["file_url"])
-            self.ui.updateStatus("%s items found until now." % len(self.file_url_list))
-        except Exception, e:
-            self.ui.updateError("Error: %s" % e)
-
-    def get_last_page_and_img_per_page(self):
-        self.ui.updateStatus("Getting last page...")
-
-        req = urllib2.Request(LIST_URL % {"page_index": 0, "tags": self.tags})
-        proxy_info = self.ui.get_proxy_addr()
-        if proxy_info:
-            opener = urllib2.build_opener(SocksProxyHandler(proxy_info["type"], proxy_info["host"], proxy_info["port"]) )
-        else:
-            opener = urllib2.build_opener()
-
-        try:
-            result_xml = opener.open(req).read()
-
-            root = et.fromstring(result_xml)
-            total_count = int(root.attrib["count"])
-            img_per_page = len(root.findall("post"))
-            last_page = total_count / img_per_page
-            self.ui.updateStatus("Found %d images on each page" % img_per_page)
-            self.ui.updateStatus("Last page is %s" % last_page)
-            return last_page, img_per_page
-        except urllib2.URLError:
-            self.ui.updateError("Cannot get page information. Please check your internet connection.")
-            last_page = None
-            return last_page
+    def run_engine(self):
+        raise NotImplementedError()
 
     def do_search(self):
-        last_page, img_per_page = self.get_last_page_and_img_per_page()
-        if not last_page:
-            return
+        self.is_downloading = True
+        self.run_engine()
+        self.ui.updateStatus("Total %s items found" % len(self.target_list))
+        self.is_downloading = False
+        return self.target_list
 
-        for page in range(0, last_page):
-            self.pool.spawn(self.fetch_list_page, page)
+    def stop(self):
+        if self.is_downloading:
+            self.is_downloading = False
+
+
+class GelbooruEngine(SearchEngine):
+    LIST_URL = "http://gelbooru.com/index.php?page=post&s=list&tags=%(tags)s&pid=%(page_index)s"
+    POST_URL = "http://gelbooru.com/index.php?page=post&s=view&id=%(image_id)s"
+    IMAGE_PER_PAGE = 42
+
+    REGEX_POST_ID = re.compile(r'<span id="s(.[0-9]+?)" class="thumb">')
+    REGEX_ORIGINAL_URL = re.compile(r'<a href="(.*?)" style="(?:.*)">Original')
+    REGEX_RESIZE_ORIGINAL_URL = re.compile(r'Resize image(?:.*)<a href="(.*?)" onclick="Post.highres')
+    REGEX_AD = re.compile(r'You are viewing an advertisement')
+
+    def run_engine(self):
+        self.ui.updateStatus("Getting image list...")
+
+        page = 0
+        image_set = set(list())
+        while self.is_downloading:
+            partial_list = self.get_list_with_page(page)
+            [image_set.add(x) for x in partial_list]
+            if len(partial_list) < self.IMAGE_PER_PAGE:
+                break
+            page += 1
+
+        for image in image_set:
+            self.pool.spawn(self.get_original_url, image)
         self.pool.join()
-        self.ui.updateStatus("Total %s items found" % len(self.file_url_list))
-        return self.file_url_list
+
+    def get_list_with_page(self, page=0):
+        url = self.LIST_URL % {"page_index": page * self.IMAGE_PER_PAGE, "tags": self.tags}
+        req = urllib2.Request(url)
+        try:
+            result_page = get_url_opener(self.ui).open(req).read()
+            if re.findall(self.REGEX_AD, result_page):
+                self.ui.updateStatus("Advertisement found, retry after 5 sec...")
+                gevent.sleep(5)
+                return self.get_list_with_page(self, page)
+            partial_list = re.findall(self.REGEX_POST_ID, result_page)
+            self.ui.updateStatus("Found %d images on page %d" % (len(partial_list), page+1))
+            return partial_list
+        except urllib2.URLError:
+            self.ui.updateError("Cannot connect to server. Maybe bad internet connection?")
+            return list()
+
+    def get_original_url(self, image_id):
+        url = self.POST_URL % {"image_id": image_id}
+        req = urllib2.Request(url)
+        try:
+            result_page = get_url_opener(self.ui).open(req).read()
+            if re.findall(self.REGEX_AD, result_page):
+                self.ui.updateStatus("Advertisement found, retry after 5 sec...")
+                gevent.sleep(5)
+                return self.get_original_url(self, image_id)
+            try:
+                original_url = re.findall(self.REGEX_RESIZE_ORIGINAL_URL, result_page)
+                if not original_url:
+                    original_url = re.findall(self.REGEX_ORIGINAL_URL, result_page)
+                target = dict()
+                target["referer"] = url
+                target["image_url"] = original_url[0]
+                self.target_list.append(target)
+            except IndexError:
+                self.ui.updateError("Error: Cannot find original image URL of %s" % url)
+        except urllib2.URLError, e:
+            self.ui.updateError("Error while fetching original image URL from %s: %s" % (url, e))

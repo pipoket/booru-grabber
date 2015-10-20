@@ -32,7 +32,6 @@ import urllib
 import socks
 import socket
 
-from searchengine import SearchEngine
 from grabdownloader import GrabDownloader
 
 
@@ -88,7 +87,7 @@ class GrabberApp(wx.App):
 
 WINDOW_TITLE = "Gelbooru Grabber"
 CURRENT_PATH = os.path.abspath(module_path())
-
+DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36"
 
 class GrabberFrame(wx.Frame):
     def __init__(self, app):
@@ -132,6 +131,13 @@ class GrabberFrame(wx.Frame):
         self.overwriteFile = wx.CheckBox(self.panel, wx.ID_ANY,
                 label="Redownload and overwrite image if it exists already",
                 style=wx.CHK_2STATE)
+
+        userAgentSizer = wx.BoxSizer(wx.VERTICAL)
+        userAgentLabel = wx.StaticText(self.panel, wx.ID_ANY,
+                "User Agent (It's ok to use default value if you don't know about this)")
+        self.userAgentText = wx.TextCtrl(self.panel, wx.ID_ANY, DEFAULT_USER_AGENT)
+        userAgentSizer.Add(userAgentLabel, 0, wx.BOTTOM, 3)
+        userAgentSizer.Add(self.userAgentText, 1, wx.EXPAND)
 
         ## Proxy UI
         optionBox = wx.StaticBox(self.panel, wx.ID_ANY, "Options")
@@ -216,6 +222,8 @@ class GrabberFrame(wx.Frame):
         optionBoxSizer.AddSpacer(10)
         optionBoxSizer.Add(self.overwriteFile, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         optionBoxSizer.AddSpacer(10)
+        optionBoxSizer.Add(userAgentSizer, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        optionBoxSizer.AddSpacer(10)
         optionBoxSizer.Add(socksOptionSizer, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         optionBoxSizer.AddSpacer(10)
 
@@ -256,7 +264,7 @@ class GrabberFrame(wx.Frame):
         self.path = CURRENT_PATH
         self.gd = GrabDownloader(ui=self, path=self.path)
 
-    def get_proxy_addr(self):
+    def get_proxy_info(self):
         if self.useSocks.IsChecked():
             if self.optionHttp.GetValue():
                 socksType = socks.HTTP
@@ -271,6 +279,12 @@ class GrabberFrame(wx.Frame):
             return {"type": socksType, "host": socksHost, "port": socksPort}
         else:
             return None
+
+    def get_useragent(self):
+        ua = self.userAgentText.GetValue().strip()
+        if not ua:
+            ua = DEFAULT_USER_AGENT
+        return ua
 
     def onDownloadPath(self, evt):
         dlg = wx.DirDialog(self, "Select path to save images",

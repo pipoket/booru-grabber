@@ -34,9 +34,9 @@ except ImportError:
 import gevent
 from gevent.pool import Pool
 
-from searchengine import SearchEngine
+from searchengine import *
 
-from grabconnection import SocksProxyHandler
+from grabconnection import get_url_opener
 
 
 class GrabDownloader(object):
@@ -45,7 +45,6 @@ class GrabDownloader(object):
         self.path = path
         self.fullpath = None
         self.ui = ui
-        self.file_urls = set([])
         self.downloaded = 0
         self.pool = None
         self.is_downloading = False
@@ -89,12 +88,13 @@ class GrabDownloader(object):
         while True:
             now_time = time.time()
             elapsed_time = now_time - self.last_elapsed_time
-            rx_bytes_per_sec = (self.total_rx_bytes - self.last_rx_bytes) / elapsed_time
-            self.last_rx_bytes = self.total_rx_bytes
-            self.last_elapsed_time = now_time
-            self.total_elapsed_time += elapsed_time
-            self.ui.statusLabel.SetLabel("Speed: %s (Elapsed %s secs)" % (
-                self.get_speedmeter_string(rx_bytes_per_sec), int(self.total_elapsed_time)))
+            if elapsed_time > 0:
+                rx_bytes_per_sec = (self.total_rx_bytes - self.last_rx_bytes) / elapsed_time
+                self.last_rx_bytes = self.total_rx_bytes
+                self.last_elapsed_time = now_time
+                self.total_elapsed_time += elapsed_time
+                self.ui.statusLabel.SetLabel("Speed: %s (Elapsed %s secs)" % (
+                    self.get_speedmeter_string(rx_bytes_per_sec), int(self.total_elapsed_time)))
             gevent.sleep(1)
 
     def start_download(self):
@@ -104,23 +104,36 @@ class GrabDownloader(object):
         self.total_elapsed_time = 0
         self.is_downloading = True
 
-        self.se = SearchEngine(self.tags, self.ui)
-        file_urls = self.se.do_search()
+        self.se = GelbooruEngine(self.tags, self.ui)
+        target_list = self.se.do_search()
 
         self.last_elapsed_time = time.time()
         self.ui_updater = gevent.spawn(self.update_speedmeter)
         self.ui.statusLabel.SetLabel("Speed: Estimating...")
         self.ui.statusLabel.Fit()
 
-        self.download(file_urls)
+        self.download(target_list)
 
     def stop_download(self):
         if self.is_downloading:
             self.is_downloading = False
             self.pool.kill()
+            self.se.stop()
+            self.se = None
             self.ui.updateStatus("Cancelling Download...")
 
-    def download(self, file_urls):
+            self.se = None
+            self.ui.updateStatus("Download Done")
+            self.ui.downloadButton.Enable(True)
+            self.ui.searchText.Enable(True)
+            self.ui.optionBox.Enable(True)
+            if self.ui_updater:
+                self.ui_updater.kill()
+                self.ui_updater = None
+                self.ui.statusLabel.SetLabel("Speed: Not Downloading")
+            self.is_downloading = False
+
+    def download(self, target_list):
         if self.ui.createTagFolder.IsChecked():
             valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
             cleaned_tags = "".join([x for x in self.tags if x in valid_chars])
@@ -128,31 +141,23 @@ class GrabDownloader(object):
         else:
             self.fullpath = self.path
 
-        self.file_urls = file_urls
         try:
             os.mkdir(self.fullpath)
         except OSError:
             self.ui.updateStatus("%s directory already exists!" % self.tags)
 
-        for file_url in self.file_urls:
-            self.pool.spawn(self.get_image, file_url)
+        total_count = len(target_list)
+        for target in target_list:
+            self.pool.spawn(self.get_image, target, total_count)
             if not self.is_downloading:
                 break
         self.pool.join()
+        self.stop_download()
 
-        self.se = None
-        self.ui.updateStatus("Download Done")
-        self.ui.downloadButton.Enable(True)
-        self.ui.searchText.Enable(True)
-        self.ui.optionBox.Enable(True)
-        if self.ui_updater:
-            self.ui_updater.kill()
-            self.ui_updater = None
-            self.ui.statusLabel.SetLabel("Speed: Not Downloading")
-        self.is_downloading = False
-
-    def get_image(self, file_url):
-        fname = file_url.split("/")[-1]
+    def get_image(self, target, total_count):
+        image_referer = target["referer"]
+        image_url = target["image_url"]
+        fname = image_url.split("/")[-1]
 
         if os.path.exists(os.path.join(self.fullpath, fname)) \
                 and (not self.ui.overwriteFile.IsChecked()):
@@ -160,19 +165,14 @@ class GrabDownloader(object):
             # if user does not want to.
             self.downloaded += 1
             self.ui.updateStatus("Progress %s/%s (%.2f %%) - SKIP! (Already downloaded)" % (
-                self.downloaded, len(self.file_urls),
-                self.downloaded * 100.0 / len(self.file_urls)))
+                self.downloaded, total_count,
+                self.downloaded * 100.0 / total_count))
             return
 
-        req = urllib2.Request(file_url)
-        proxy_info = self.ui.get_proxy_addr()
-        if proxy_info:
-            opener = urllib2.build_opener(SocksProxyHandler(proxy_info["type"], proxy_info["host"], proxy_info["port"]) )
-        else:
-            opener = urllib2.build_opener()
-
+        req = urllib2.Request(image_url)
+        req.add_header("referer", image_referer)
         try:
-            response = opener.open(req)
+            response = get_url_opener(self.ui).open(req)
             img_file_buffer = StringIO.StringIO()
             while True:
                 chunk = response.read(16384)
@@ -185,13 +185,15 @@ class GrabDownloader(object):
             fp.write(img_file_buffer.getvalue())
             fp.close()
             self.downloaded += 1
-            self.ui.updateStatus("Progress: %s/%s (%.2f %%)" % (self.downloaded, len(self.file_urls),
-                    self.downloaded * 100.0 / len(self.file_urls)))
+            self.ui.updateStatus("Progress: %s/%s (%.2f %%)" % (
+                self.downloaded, total_count,
+                self.downloaded * 100.0 / total_count)
+            )
         except urllib2.HTTPError, ue:
             if ue.code == 503:
                 # Temporarily Unavailable Error: Retry!
-                self.pool.spawn(self.get_image, file_url)
+                self.pool.spawn(self.get_image, image_url, total_count)
             else:
                 self.ui.updateError("Error: %s" % ue)
         except Exception, e:
-            self.ui.updateError("Error: %s" % e)
+            self.ui.updateError("Error: %s, %s" % (e, image_referer))

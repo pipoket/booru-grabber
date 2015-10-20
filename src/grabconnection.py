@@ -32,3 +32,15 @@ class SocksProxyHandler(urllib2.HTTPHandler):
             conn = SocksProxyConnection(*self.args, host=host, port=port, strict=strict, timeout=timeout, **self.kw)
             return conn
         return self.do_open(build, req)
+
+
+def get_url_opener(ui):
+    ua = ui.get_useragent()
+    proxy_info = ui.get_proxy_info()
+    if proxy_info:
+        socks_handler = SocksProxyHandler(proxy_info["type"], proxy_info["host"], proxy_info["port"])
+        opener = urllib2.build_opener(socks_handler)
+    else:
+        opener = urllib2.build_opener()
+    opener.addheaders = [('User-Agent', ua)]
+    return opener
