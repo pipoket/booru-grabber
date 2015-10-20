@@ -17,7 +17,7 @@ base = "Win32GUI"
 
 setup(
         name = "booru-grabber",
-        version = "0.2.0",
+        version = "0.2.2",
         description = "Booru Grabber",
         options = {
             "build_exe": {
