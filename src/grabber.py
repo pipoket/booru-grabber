@@ -107,7 +107,7 @@ class GrabberFrame(wx.Frame):
 
         downloadCountSizer = wx.BoxSizer(wx.HORIZONTAL)
         downloadCountLabel = wx.StaticText(self.panel, wx.ID_ANY,
-                "Maximum number of active downloads (1-256)")
+                "Maximum number of active downloads (1-32)")
         self.downloadCount = wx.SpinCtrl(self.panel, wx.ID_ANY)
         downloadCountSizer.Add(downloadCountLabel, 0, wx.RIGHT, 15)
         downloadCountSizer.Add(self.downloadCount)
@@ -254,7 +254,7 @@ class GrabberFrame(wx.Frame):
         grandSizer.Fit(self)
 
         self.downloadCount.SetValue(8)
-        self.downloadCount.SetRange(1, 256)
+        self.downloadCount.SetRange(1, 32)
 
         self.prepareUI()
         self.prepareCores()
