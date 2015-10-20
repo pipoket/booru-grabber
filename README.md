@@ -1,5 +1,7 @@
 What is this?
 =============
+**I don't need fancy UI or preview. Just download'em for me already! D:**
+
 Booru Image Grabber grabs images from the *-booru image sites.
 site and stores the images to the disk. Downloading images one-by-one from the
 website is kinda tedious work. So, why don't we make some kind of program that
@@ -77,6 +79,25 @@ using the 'Issues' menu above. Or you can send me a message if you are Github me
 Release Notes
 =============
 
+0.2.2 (2015-10-20)
+------------------
+
+Sorry for the late update, but hey, I have a job and this is my free-time toy-project anyway! :3
+
+**Bug fixes**
+- Grabber does not work properly (API is blocked D:)
+ - Workaround has been applied to make grabber to work properly
+- Using 'Stop' button makes application unusable time to time
+ - Annoying bugs such as download button becoming unresponsive, crash, etc...
+
+**Updates**
+- Slowly refactoring code structure to support more booru-ish sites
+
+**Features**
+- Make User-Agent configurable
+- Grabber now remembers its last configuration (no need to type proxy repeatedly)
+
+
 0.2.0 (2015-04-14)
 ------------------
 
@@ -144,12 +165,3 @@ MAJOR REFACTORING AND UPDATES! (4 years D:)
 - The grabber crashes randomly due to the major bug within core download code
 - Reset download counter if new download starts
 - Trying to download tagname with only one page on gelbooru made the grabber to hang
-
-
-
-Side Notes
-===============
-- This project has been moved from [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber)
-- Yes, I'm the same developer who made [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber)
-- Yes, I know  [gelbooru-grabber](https://bitbucket.org/pipoket/gelbooru-grabber) sucks and does not work properly, but I had no time to fix those
-- Now hereby I say, sorry for all those who were using out-dated, not-properly-functioning old gelbooru-grabber :(
