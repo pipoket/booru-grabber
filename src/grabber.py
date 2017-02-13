@@ -362,7 +362,6 @@ class GrabberFrame(wx.Frame):
 
     def onDownload(self, evt):
         value = self.searchText.GetValue().strip()
-        value = urllib.parse.quote_plus(value)
         if not value:
             self.updateError("Please input the tag value!")
             return

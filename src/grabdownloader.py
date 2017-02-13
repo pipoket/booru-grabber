@@ -37,8 +37,8 @@ from grabconnection import get_url_opener
 
 
 class GrabDownloader(object):
-    def __init__(self, tags="", ui=None, path=None, pwd=None):
-        self.tags = tags
+    def __init__(self, raw_tags="", ui=None, path=None, pwd=None):
+        self.raw_tags = raw_tags
         self.path = path
         self.pwd = pwd
         self.fullpath = None
@@ -53,8 +53,8 @@ class GrabDownloader(object):
         self.total_elapsed_time = 0
         self.last_elapsed_time = 0
 
-    def update_tags(self, tags):
-        self.tags = tags
+    def update_tags(self, raw_tags):
+        self.raw_tags = raw_tags
 
     def update_dcount(self, dvalue):
         self.pool = Pool(dvalue)
@@ -102,7 +102,7 @@ class GrabDownloader(object):
         self.total_elapsed_time = 0
         self.is_downloading = True
 
-        self.se = GelbooruEngine(self.tags, self.ui)
+        self.se = GelbooruEngine(self.raw_tags, self.ui)
         target_list = self.se.do_search()
 
         self.last_elapsed_time = time.time()
@@ -119,7 +119,7 @@ class GrabDownloader(object):
             self.pool.join()
             self.se.stop()
             self.se = None
-            self.ui.updateStatus("Finishing Download...")
+            self.ui.updateStatus("Stopping Download...")
 
             self.se = None
             self.ui.updateStatus("Download Done")
@@ -136,7 +136,7 @@ class GrabDownloader(object):
     def download(self, target_list):
         if self.ui.createTagFolder.IsChecked():
             valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-            cleaned_tags = self.tags.replace("+", "_")
+            cleaned_tags = self.raw_tags.replace("+", "_")
             cleaned_tags = "".join([x for x in cleaned_tags if x in valid_chars])
             self.fullpath = os.path.join(self.path, cleaned_tags)
         else:

@@ -35,8 +35,8 @@ from grabconnection import get_url_opener
 
 
 class SearchEngine(object):
-    def __init__(self, tags="", ui=None):
-        self.tags = tags
+    def __init__(self, raw_tags="", ui=None):
+        self.tags = urllib.parse.quote_plus(raw_tags)
         self.ui = ui 
         self.target_list = list()
         self.pool_id = Pool(1)
@@ -45,8 +45,8 @@ class SearchEngine(object):
         self.is_downloading = False
         self.stop_downloading = False
 
-    def update_tags(self, tags):
-        self.tags = tags
+    def update_tags(self, raw_tags):
+        self.tags = urllib.parse.quote_plus(raw_tags)
 
     def run_engine(self):
         raise NotImplementedError()
