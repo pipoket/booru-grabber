@@ -91,9 +91,11 @@ Yes, the project is not dead. Yes, it's lazy developer :<
 - Grabber fails to download images with 'Error: uknown url type' error
 - Setting download path to non-existent one causes Grabber to malfunction
 - Non-ASCII character on Grabber path causes exception
+- Directory created from tag value unnecessarily uses quoted string (e.g. 'tag(a)' -> 'tag26a29')
 
 **Updates**
 - Grabber now runs under Python 3.6!
+- Update proxy feature to handle HTTPS connection
 
 
 0.2.2 (2015-10-20)
