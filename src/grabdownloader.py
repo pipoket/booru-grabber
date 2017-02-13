@@ -37,9 +37,10 @@ from grabconnection import get_url_opener
 
 
 class GrabDownloader(object):
-    def __init__(self, tags="", ui=None, path=None):
+    def __init__(self, tags="", ui=None, path=None, pwd=None):
         self.tags = tags
         self.path = path
+        self.pwd = pwd
         self.fullpath = None
         self.ui = ui
         self.downloaded = 0
@@ -143,8 +144,15 @@ class GrabDownloader(object):
 
         try:
             os.mkdir(self.fullpath)
-        except OSError:
-            self.ui.updateStatus("%s directory already exists!" % self.tags)
+        except FileExistsError:
+            self.ui.updateStatus("%s directory already exists!" % cleaned_tags)
+        except OSError as err:
+            self.ui.updateStatus(("Warning: Failed to create directory."
+                "Forcing to download images under the directory"
+                "where Grabber is located."))
+            self.path = self.pwd
+            self.ui.downloadPathText.SetValue(self.path)
+            return self.download(target_list)
 
         total_count = len(target_list)
         for target in target_list:

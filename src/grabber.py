@@ -265,7 +265,7 @@ class GrabberFrame(wx.Frame):
 
     def prepareCores(self):
         self.path = CURRENT_PATH
-        self.gd = GrabDownloader(ui=self, path=self.path)
+        self.gd = GrabDownloader(ui=self, path=self.path, pwd=CURRENT_PATH)
 
     def prepareOptions(self):
         try:
