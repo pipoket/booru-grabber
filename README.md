@@ -66,6 +66,9 @@ Extract the files in the archive you downloaded to the location wherever you wan
 You should extract the scripts to the location where you have permission to write.
 After extraction, run the grabber.py script. Have fun!
 
+**NOTE**
+To use wxPython under Python 3.x, you must download and install the prebuilt binary provided by
+[Project Pheonix](https://wiki.wxpython.org/ProjectPhoenix).
 
 
 The grabber does not work! Where can I report the problem?
@@ -78,6 +81,20 @@ using the 'Issues' menu above. Or you can send me a message if you are Github me
 
 Release Notes
 =============
+
+0.2.4 (2017-02-13)
+------------------
+
+Yes, the project is not dead. Yes, it's lazy developer :<
+
+**Bug fixes**
+- Grabber fails to download images with 'Error: uknown url type' error
+- Setting download path to non-existent one causes Grabber to malfunction
+- Non-ASCII character on Grabber path causes exception
+
+**Updates**
+- Grabber now runs under Python 3.6!
+
 
 0.2.2 (2015-10-20)
 ------------------
