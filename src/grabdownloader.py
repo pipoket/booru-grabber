@@ -24,12 +24,9 @@ import re
 import os
 import time
 import string
-import urllib2
+import urllib
 
-try:
-    import cStringIO as StringIO
-except ImportError:
-    import StringIO
+from io import StringIO
 
 import gevent
 from gevent.pool import Pool
@@ -171,7 +168,7 @@ class GrabDownloader(object):
                 self.downloaded * 100.0 / total_count))
             return
 
-        req = urllib2.Request(image_url)
+        req = urllib.request.Request(image_url)
         req.add_header("referer", image_referer)
         try:
             response = get_url_opener(self.ui).open(req)
@@ -191,11 +188,11 @@ class GrabDownloader(object):
                 self.downloaded, total_count,
                 self.downloaded * 100.0 / total_count)
             )
-        except urllib2.HTTPError, ue:
+        except urllib.HTTPError as ue:
             if ue.code == 503:
                 # Temporarily Unavailable Error: Retry!
                 self.pool.spawn(self.get_image, image_url, total_count)
             else:
                 self.ui.updateError("Error: %s" % ue)
-        except Exception, e:
+        except Exception as e:
             self.ui.updateError("Error: %s, %s" % (e, image_referer))

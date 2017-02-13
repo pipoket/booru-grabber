@@ -28,7 +28,7 @@ import wx
 import os
 import sys
 import urllib
-import ConfigParser
+import configparser
 
 import socks
 import socket
@@ -51,14 +51,14 @@ def module_path():
     even if we are frozen using py2exe"""
 
     if we_are_frozen():
-        return os.path.dirname(unicode(sys.executable, sys.getfilesystemencoding( )))
+        return os.path.dirname(sys.executable)
 
-    return os.path.dirname(unicode(__file__, sys.getfilesystemencoding( )))
+    return os.path.dirname(__file__)
 
 
 class GrabberApp(wx.App):
     def MainLoop(self):
-        evtloop = wx.EventLoop()
+        evtloop = wx.GUIEventLoop()
         wx.EventLoop.SetActive(evtloop)
 
         # This outer loop determines when to exit the application,
@@ -69,13 +69,11 @@ class GrabberApp(wx.App):
                 while self.keepGoing and evtloop.Pending():
                     evtloop.Dispatch()
                     gevent.sleep(1.0 / 60)
-                self.ProcessIdle()
         else:
             while self.keepGoing:
                 while evtloop.Pending():
                     evtloop.Dispatch()
                 gevent.sleep(1.0 / 30)
-                self.ProcessIdle()
 
     def OnInit(self):
         self.keepGoing = True
@@ -271,7 +269,7 @@ class GrabberFrame(wx.Frame):
 
     def prepareOptions(self):
         try:
-            config = ConfigParser.SafeConfigParser()
+            config = configparser.ConfigParser()
             config.read("config.ini")
             self.downloadCount.SetValue(config.getint("Options", "downloadCount"))
             self.downloadPathText.SetValue(config.get("Options", "downloadPath"))
@@ -298,12 +296,12 @@ class GrabberFrame(wx.Frame):
                     self.optionSocks5.SetValue(True)
                 self.socksHostText.SetValue(config.get("Options", "proxyHost"))
                 self.socksPortText.SetValue(config.get("Options", "proxyPort"))
-        except Exception, e:
+        except Exception as e:
             self.saveOptions()
             self.updateStatus("Config file not found or parse error. Created new one.")
 
     def saveOptions(self):
-        config = ConfigParser.SafeConfigParser()
+        config = configparser.ConfigParser()
         config.add_section("Options")
         config.set("Options", "downloadCount", str(self.downloadCount.GetValue()))
         config.set("Options", "downloadPath", self.downloadPathText.GetValue())
@@ -364,7 +362,7 @@ class GrabberFrame(wx.Frame):
 
     def onDownload(self, evt):
         value = self.searchText.GetValue().strip()
-        value = urllib.quote_plus(value)
+        value = urllib.parse.quote_plus(value)
         if not value:
             self.updateError("Please input the tag value!")
             return

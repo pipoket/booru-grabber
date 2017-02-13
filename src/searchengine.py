@@ -22,7 +22,7 @@
 
 import re
 import sys
-import urllib2
+import urllib
 
 import socket
 
@@ -66,8 +66,8 @@ class SearchEngine(object):
 
 
 class GelbooruEngine(SearchEngine):
-    LIST_URL = "http://gelbooru.com/index.php?page=post&s=list&tags=%(tags)s&pid=%(page_index)s"
-    POST_URL = "http://gelbooru.com/index.php?page=post&s=view&id=%(image_id)s"
+    LIST_URL = "https://gelbooru.com/index.php?page=post&s=list&tags=%(tags)s&pid=%(page_index)s"
+    POST_URL = "https://gelbooru.com/index.php?page=post&s=view&id=%(image_id)s"
     IMAGE_PER_PAGE = 42
 
     REGEX_POST_ID = re.compile(r'<span id="s(.[0-9]+?)" class="thumb">')
@@ -95,9 +95,10 @@ class GelbooruEngine(SearchEngine):
 
     def get_list_with_page(self, page=0):
         url = self.LIST_URL % {"page_index": page * self.IMAGE_PER_PAGE, "tags": self.tags}
-        req = urllib2.Request(url)
+        req = urllib.request.Request(url)
         try:
-            result_page = get_url_opener(self.ui).open(req).read()
+            result_page_raw = get_url_opener(self.ui).open(req).read()
+            result_page = result_page_raw.decode('utf-8')
             if re.findall(self.REGEX_AD, result_page):
                 self.ui.updateStatus("Advertisement found, retry after 5 sec...")
                 gevent.sleep(5)
@@ -105,15 +106,16 @@ class GelbooruEngine(SearchEngine):
             partial_list = re.findall(self.REGEX_POST_ID, result_page)
             self.ui.updateStatus("Found %d images on page %d" % (len(partial_list), page+1))
             return partial_list
-        except urllib2.URLError:
+        except urllib.error.URLError:
             self.ui.updateError("Cannot connect to server. Maybe bad internet connection?")
             return list()
 
     def get_original_url(self, image_id):
         url = self.POST_URL % {"image_id": image_id}
-        req = urllib2.Request(url)
+        req = urllib.request.Request(url)
         try:
-            result_page = get_url_opener(self.ui).open(req).read()
+            result_page_raw = get_url_opener(self.ui).open(req).read()
+            result_page = result_page_raw.decode('utf-8')
             if re.findall(self.REGEX_AD, result_page):
                 self.ui.updateStatus("Advertisement found, retry after 5 sec...")
                 gevent.sleep(5)
@@ -128,5 +130,5 @@ class GelbooruEngine(SearchEngine):
                 self.target_list.append(target)
             except IndexError:
                 self.ui.updateError("Error: Cannot find original image URL of %s" % url)
-        except urllib2.URLError, e:
+        except urllib.error.URLError as e:
             self.ui.updateError("Error while fetching original image URL from %s: %s" % (url, e))
