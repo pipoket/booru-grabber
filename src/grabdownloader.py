@@ -26,7 +26,7 @@ import time
 import string
 import urllib
 
-from io import StringIO
+from io import BytesIO
 
 import gevent
 from gevent.pool import Pool
@@ -118,7 +118,7 @@ class GrabDownloader(object):
             self.pool.join()
             self.se.stop()
             self.se = None
-            self.ui.updateStatus("Cancelling Download...")
+            self.ui.updateStatus("Finishing Download...")
 
             self.se = None
             self.ui.updateStatus("Download Done")
@@ -135,7 +135,8 @@ class GrabDownloader(object):
     def download(self, target_list):
         if self.ui.createTagFolder.IsChecked():
             valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-            cleaned_tags = "".join([x for x in self.tags if x in valid_chars])
+            cleaned_tags = self.tags.replace("+", "_")
+            cleaned_tags = "".join([x for x in cleaned_tags if x in valid_chars])
             self.fullpath = os.path.join(self.path, cleaned_tags)
         else:
             self.fullpath = self.path
@@ -172,7 +173,7 @@ class GrabDownloader(object):
         req.add_header("referer", image_referer)
         try:
             response = get_url_opener(self.ui).open(req)
-            img_file_buffer = StringIO.StringIO()
+            img_file_buffer = BytesIO()
             while True:
                 chunk = response.read(16384)
                 if not chunk:
@@ -188,7 +189,7 @@ class GrabDownloader(object):
                 self.downloaded, total_count,
                 self.downloaded * 100.0 / total_count)
             )
-        except urllib.HTTPError as ue:
+        except urllib.error.HTTPError as ue:
             if ue.code == 503:
                 # Temporarily Unavailable Error: Retry!
                 self.pool.spawn(self.get_image, image_url, total_count)

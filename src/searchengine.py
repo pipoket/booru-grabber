@@ -68,6 +68,7 @@ class SearchEngine(object):
 class GelbooruEngine(SearchEngine):
     LIST_URL = "https://gelbooru.com/index.php?page=post&s=list&tags=%(tags)s&pid=%(page_index)s"
     POST_URL = "https://gelbooru.com/index.php?page=post&s=view&id=%(image_id)s"
+    URL_SCHEME = "https"
     IMAGE_PER_PAGE = 42
 
     REGEX_POST_ID = re.compile(r'<span id="s(.[0-9]+?)" class="thumb">')
@@ -121,12 +122,18 @@ class GelbooruEngine(SearchEngine):
                 gevent.sleep(5)
                 return self.get_original_url(self, image_id)
             try:
-                original_url = re.findall(self.REGEX_RESIZE_ORIGINAL_URL, result_page)
-                if not original_url:
-                    original_url = re.findall(self.REGEX_ORIGINAL_URL, result_page)
+                original_url_list = re.findall(self.REGEX_RESIZE_ORIGINAL_URL, result_page)
+                if not original_url_list:
+                    original_url_list = re.findall(self.REGEX_ORIGINAL_URL, result_page)
+                original_url = original_url_list[0]
+
+                parse_result = urllib.parse.urlparse(original_url)
+                unparse_args = (self.URL_SCHEME, *parse_result[1:])
+                fixed_original_url = urllib.parse.urlunparse(unparse_args)
+
                 target = dict()
                 target["referer"] = url
-                target["image_url"] = original_url[0]
+                target["image_url"] = fixed_original_url
                 self.target_list.append(target)
             except IndexError:
                 self.ui.updateError("Error: Cannot find original image URL of %s" % url)

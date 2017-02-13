@@ -128,7 +128,7 @@ class GrabberFrame(wx.Frame):
         self.createTagFolder.SetValue(True)
 
         self.overwriteFile = wx.CheckBox(self.panel, wx.ID_ANY,
-                label="Redownload and overwrite image if it exists already",
+                label="Redownload and overwrite image even if it already exists",
                 style=wx.CHK_2STATE)
 
         userAgentSizer = wx.BoxSizer(wx.VERTICAL)
