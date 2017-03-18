@@ -58,3 +58,5 @@ for filename in os.listdir(output_path):
         filepath = os.path.join(output_path, filename)
         args = ["upx", "--best", filepath]
         subprocess.call(args)
+
+print("Make sure you have included necessary runtimes! (e.g. MSVCP140.dll)")
