@@ -82,6 +82,16 @@ using the 'Issues' menu above. Or you can send me a message if you are Github me
 Release Notes
 =============
 
+0.2.5 (2017-03-18)
+------------------
+
+Small bugfixes.
+
+**Bug fixes**
+- Grabber fails to download images with 'Error: <urlopen error no host given>'
+- Grabber fails to launch with an error saying "DLL import failure"
+
+
 0.2.4 (2017-02-13)
 ------------------
 
