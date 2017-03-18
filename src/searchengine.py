@@ -72,7 +72,7 @@ class GelbooruEngine(SearchEngine):
     IMAGE_PER_PAGE = 42
 
     REGEX_POST_ID = re.compile(r'<span id="s(.[0-9]+?)" class="thumb">')
-    REGEX_ORIGINAL_URL = re.compile(r'<a href="(.*?)" style="(?:.*)">Original')
+    REGEX_ORIGINAL_URL = re.compile(r'<a href="(.*?)" target="_blank" style="(?:.*)">Original')
     REGEX_RESIZE_ORIGINAL_URL = re.compile(r'Resize image(?:.*)<a href="(.*?)" onclick="Post.highres')
     REGEX_AD = re.compile(r'You are viewing an advertisement')
 
