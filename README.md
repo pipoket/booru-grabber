@@ -88,7 +88,7 @@ Release Notes
 Small bugfixes.
 
 **Bug fixes**
-- Grabber fails to download images with 'Error: <urlopen error no host given>'
+- Grabber fails to download images with 'Error: urlopen error no host given'
 - Grabber fails to launch with an error saying "DLL import failure"
 
 
